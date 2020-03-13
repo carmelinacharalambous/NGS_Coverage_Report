@@ -1,0 +1,112 @@
+---
+title: "NGS Coverage Report"
+author: "Carmelina Charalambous"
+date: "11 March 2020"
+output: html_document
+editor options: 
+ chunk_output_type: console
+---
+
+
+
+# Summary
+This script creates an NGS coverage report to highlight genes with sub-optimal coverage (less than 30x coverage). This script can be be applied to any gene panel by replacing the file with your desired output file at line 60.
+
+
+## Start
+```{r start_section, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+#Time
+Sys.time()
+
+#Clean-up
+
+rm(list=ls())
+graphics.off()
+
+#Set desired options
+options(stringsAsFactors = F,
+        warnPartialMatchArgs = T,
+         warnPartialMatchAttr = T,
+         warnPartialMatchDollar = T)
+
+
+#Load necessery libraries
+library(readr)
+library(dplyr)
+library(tidyr)
+library(readxl)
+library(xml2)
+library(stringr)
+library(openxlsx)
+library(kableExtra)
+
+
+```
+
+```{r setwd, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+### Set working directory
+
+setwd("/Volumes/SECURE/NGS_coverage")
+
+```
+
+
+### Load data and aggregate percentage coverage 30x by gene
+
+```{r load_data, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+Raw_coverage_output <- read_excel("/Volumes/SECURE/NGS_coverage/coverage_30.xlsx")
+
+Raw_coverage_output <- separate(Raw_coverage_output, "GeneSymbol;Accession", "GeneSymbol", sep = ";", remove = FALSE, convert = FALSE)
+
+
+```
+
+### Check if there is more than 1 gene accession number per gene
+```{r accession_numbers, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+genes_inique <- unique(Raw_coverage_output$GeneSymbol)
+
+accessions <- unique(Raw_coverage_output$`GeneSymbol;Accession`) 
+
+# Each  gene was mapped to a unique accession number
+
+kable(Raw_coverage_output[1:5,], format = "html", align = "c") %>%
+  kable_styling(bootstrap_options = "condensed", full_width = T, position = "float_left", font_size = 10) %>%
+  column_spec(1, bold = T, color = "#142851")
+
+```
+
+
+### Genes that have failed coverage at 30x are tabulated below
+```{r less_than_100, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+# Calculate average percentage coverage per gene and also taking in consideration exon length (uniformity of coverage distribution decreases for longer exons)
+
+aggregated_per_gene <- Raw_coverage_output %>%
+  mutate(exon_length = abs(EndPosition - StartPosition)) %>% 
+  group_by(GeneSymbol) %>%
+  summarise(avg_percentage_30=weighted.mean(percentage30,exon_length)) %>% 
+  filter(avg_percentage_30<100) %>% 
+  select(GeneSymbol,avg_percentage_30)
+
+kable(aggregated_per_gene, format = "html", align = "c") %>%
+  kable_styling(bootstrap_options = "condensed", full_width = T, position = "float_left", font_size = 12) %>%
+  column_spec(1, bold = T, color = "#142851")
+
+```
+
+
+### Clean_up
+```{r final_section, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+ls()
+Sys.time()
+
+```
+
+
+
+
